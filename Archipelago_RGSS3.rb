@@ -423,6 +423,11 @@
     class Scene_Title < Scene_Base
         def start
             $archipelago.disconnect
+            $archipelago = Archipelago::Client.new
+            $archipelago.connect_info = {
+                "game" => $archipelago_gamename,
+                "items_handling" => $archipelago_items_handling
+            }
             super
             SceneManager.clear
             Graphics.freeze
