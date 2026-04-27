@@ -42,6 +42,7 @@
 
     require 'archipelago_rb'
     require 'io/console'
+    require 'json'
 #==============================================================================
 # ** CONFIGURATION
 #------------------------------------------------------------------------------
@@ -145,7 +146,7 @@
 #    * DEFAULT: ringlink_enabled = false, ringlink_conversion_rate = 1
 #--------------------------------------------------------------------------
     ringlink_enabled = false
-    ringlink_conversion_rate = 1
+    $ringlink_conversion_rate = 1
 #==============================================================================
 # ** CODE
 #------------------------------------------------------------------------------
@@ -361,13 +362,77 @@
         end
     end
 #--------------------------------------------------------------------------
-# * Initialize Archipelago Client
+# * Method: Set up common Archipelago startup details
 #--------------------------------------------------------------------------
-    $archipelago = Archipelago::Client.new
-    $archipelago.connect_info = {
-        "game" => $archipelago_gamename,
-        "items_handling" => $archipelago_items_handling
-    }
+    
+    def restart_archipelago
+
+        $archipelago = Archipelago::Client.new
+        $archipelago.connect_info["game"] = $archipelago_gamename
+        $archipelago.connect_info["items_handling"] = $archipelago_items_handling
+        $archipelago.connect_info["tags"] = ["RingLink"] if $ringlink_enabled
+    #----------------------------------------------------------------------
+    # * On Connected: Begin ItemHandling thread
+    #----------------------------------------------------------------------
+        # This is extremely bad and I wish I did not have to do this
+        unhandled_items = Queue.new
+        $archipelago.add_listener("Connected") do |msg|
+            Thread.new do
+                loop do
+                    item = unhandled_items.pop(true) rescue nil
+                    if item
+                        eval_target = $expanded_receiveditem_methods.fetch(item, "puts \"[Archipelago_RGSS3] No defined method for ReceivedItem ID #{item}!\"")
+                        eval(eval_target)
+                    else
+                        sleep 0.1
+                    end
+                    break if $archipelago.client_connect_status == Archipelago::ConnectStatus::DISCONNECTED
+                end
+            end
+        end
+
+    #----------------------------------------------------------------------
+    # * On ReceivedItems: Process Index, push item to handler
+    #----------------------------------------------------------------------
+
+        $receiveditems_index = 0
+        $archipelago.add_listener("ReceivedItems") do |msg|
+            item_counter = msg["index"]
+
+            msg["items"].each do |item|
+                if $receiveditems_index <= item_counter
+                    unhandled_items.push(item["item"])
+                    $receiveditems_index += 1
+                end
+                item_counter += 1
+            end
+        end
+
+        # For future me, here's the old code but commented out
+        #$receiveditems_index = 0
+        #$archipelago.add_listener("ReceivedItems") do |msg|
+        #    item_counter = msg["index"]
+        #
+        #    msg["items"].each do |item|
+        #        if $receiveditems_index == item_counter
+        #            eval_target = $expanded_receiveditem_methods.fetch(item, "puts \"[Archipelago_RGSS3] No defined method for ReceivedItem ID #{item}!\"")
+        #            eval(eval_target)
+        #            $receiveditems_index += 1
+        #        end
+        #        item_counter += 1
+        #    end
+        #end
+
+    #----------------------------------------------------------------------
+    # * On Bounced, RingLink: Change currency
+    #----------------------------------------------------------------------
+
+        $archipelago.add_listener("Bounced") do |msg|
+            if msg["tags"].include?("RingLink") and $ringlink_uuid != msg["data"]["source"]
+                $game_party.gain_gold_ringlink((msg["data"]["amount"] * $ringlink_conversion_rate).to_i)
+            end
+        end
+    end
 #--------------------------------------------------------------------------
 # * Override Cache to load Custom icons
 #--------------------------------------------------------------------------
@@ -429,68 +494,32 @@
     module Scene_Title_Disconnect
         def start
             $archipelago.disconnect
-            $archipelago = Archipelago::Client.new
-            $archipelago.connect_info = {
-                "game" => $archipelago_gamename,
-                "items_handling" => $archipelago_items_handling
-            }
+            restart_archipelago
             super
         end
     end
 
     Scene_Title.prepend(Scene_Title_Disconnect)
+
 #--------------------------------------------------------------------------
-# * On Connected: Begin ItemHandling thread
+# * RingLink: Setup RingLink by adding new methods
 #--------------------------------------------------------------------------
 
-    # This is extremely bad and I wish I did not have to do this
-    unhandled_items = Queue.new
-    $archipelago.add_listener("Connected") do |msg|
-        Thread.new do
-            loop do
-                item = unhandled_items.pop(true) rescue nil
-                if item
-                    eval_target = $expanded_receiveditem_methods.fetch(item, "puts \"[Archipelago_RGSS3] No defined method for ReceivedItem ID #{item}!\"")
-                    eval(eval_target)
-                else
-                    sleep 0.1
-                end
-                break if $archipelago.client_connect_status == Archipelago::ConnectStatus::DISCONNECTED
+    if $ringlink_enabled
+        $ringlink_uuid = rand(0..1000000)
+        module RingLink_Methods
+            def gain_gold(amount)
+                ringlink_packet = [{cmd: "Bounce", tags: ["RingLink"], data: {time: Time.now.to_i, source: $ringlink_uuid, amount: amount * $ringlink_conversion_rate}}].to_json
+                $archipelago.client_socket.send(ringlink_packet)
+                super(amount)
+            end
+
+            def gain_gold_ringlink(amount)
+                @gold = [[@gold + amount, 0].max, max_gold].min
             end
         end
+
+        Game_Party.prepend(RingLink_Methods)
     end
-
-#--------------------------------------------------------------------------
-# * On ReceivedItems: Process Index, push item to handler
-#--------------------------------------------------------------------------
-
-    $receiveditems_index = 0
-    $archipelago.add_listener("ReceivedItems") do |msg|
-        item_counter = msg["index"]
-
-        msg["items"].each do |item|
-            if $receiveditems_index <= item_counter
-                unhandled_items.push(item["item"])
-                $receiveditems_index += 1
-            end
-            item_counter += 1
-        end
-    end
-
-    # For future me, here's the old code but commented out
-    #$receiveditems_index = 0
-    #$archipelago.add_listener("ReceivedItems") do |msg|
-    #    item_counter = msg["index"]
-    #
-    #    msg["items"].each do |item|
-    #        if $receiveditems_index == item_counter
-    #            eval_target = $expanded_receiveditem_methods.fetch(item, "puts \"[Archipelago_RGSS3] No defined method for ReceivedItem ID #{item}!\"")
-    #            eval(eval_target)
-    #            $receiveditems_index += 1
-    #        end
-    #        item_counter += 1
-    #    end
-    #end
-
 
 
