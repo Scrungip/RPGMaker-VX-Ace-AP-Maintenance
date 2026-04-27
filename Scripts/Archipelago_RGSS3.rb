@@ -138,8 +138,14 @@
 #  are provided here to further customize how this integration works.
 #==============================================================================
 #--------------------------------------------------------------------------
-# * There are currently no advanced settings.
+# * RingLink
+#  RingLink is a protocol that essentially links all players' currencies
+#  together. Enable it by setting the value to true. You can change the
+#  conversion rate to any int/float.
+#    * DEFAULT: ringlink_enabled = false, ringlink_conversion_rate = 1
 #--------------------------------------------------------------------------
+    ringlink_enabled = false
+    ringlink_conversion_rate = 1
 #==============================================================================
 # ** CODE
 #------------------------------------------------------------------------------
@@ -418,9 +424,9 @@
         end
     end
 #--------------------------------------------------------------------------
-# * Override Scene_Title.start to kill Archipelago connection
+# * Prepend Scene_Title.start to kill Archipelago connection
 #--------------------------------------------------------------------------
-    class Scene_Title < Scene_Base
+    module Scene_Title_Disconnect
         def start
             $archipelago.disconnect
             $archipelago = Archipelago::Client.new
@@ -429,14 +435,10 @@
                 "items_handling" => $archipelago_items_handling
             }
             super
-            SceneManager.clear
-            Graphics.freeze
-            create_background
-            create_foreground
-            create_command_window
-            play_title_music
         end
     end
+
+    Scene_Title.prepend(Scene_Title_Disconnect)
 #--------------------------------------------------------------------------
 # * On Connected: Begin ItemHandling thread
 #--------------------------------------------------------------------------
