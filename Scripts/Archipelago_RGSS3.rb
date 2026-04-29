@@ -493,7 +493,7 @@
 #--------------------------------------------------------------------------
     module Scene_Title_Disconnect
         def start
-            $archipelago.disconnect
+            $archipelago.disconnect if $archipelago
             restart_archipelago
             super
         end
