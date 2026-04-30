@@ -331,10 +331,11 @@
         $archipelago.connect_info["port"] = port.to_i
         $archipelago.connect_info["name"] = name
         $archipelago.connect_info["password"] = password unless password.empty?
-        if ringlink = "true"
+        if ringlink == "true"
             $ringlink_enabled = true
         else
             $ringlink_enabled = false
+        end
     end
 #--------------------------------------------------------------------------
 # * Create a new TextInput Scene
@@ -400,6 +401,7 @@
                             sleep 0.1
                         else
                             sleep 0.1
+                        end
                     else
                         # This ensures that items are not received until the game is in a valid scene
                         if SceneManager.scene_is?(Scene_Map)
@@ -410,8 +412,10 @@
                                 sleep 0.1
                             else
                                 sleep 0.1
+                            end
                         else
                             sleep 0.5
+                        end
                     end
                     break if $archipelago.client_connect_status == Archipelago::ConnectStatus::DISCONNECTED
                 end
