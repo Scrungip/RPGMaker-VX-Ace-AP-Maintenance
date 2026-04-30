@@ -407,8 +407,8 @@
                                 sleep 0.1
                         else
                             sleep 0.5
-                    break if $archipelago.client_connect_status == Archipelago::ConnectStatus::DISCONNECTED
                     end
+                    break if $archipelago.client_connect_status == Archipelago::ConnectStatus::DISCONNECTED
                 end
             end
         end
