@@ -58,10 +58,15 @@
 #  '$load_autoconnect' determines if the game will automatically try to
 #  reconnect to its multiworld when loading a save.
 #    * DEFAULT: true
+#  '$receive_items_outside_map' determines if the game will register AP items
+#  while the player is not in the main Map Scene. This may include during
+#  battle, menus, or other things. This could cause issues depending on how
+#  you're handling your items.
 #--------------------------------------------------------------------------
     $archipelago_gamename = "RPGMaker VX Ace"
     $archipelago_items_handling = Archipelago::ItemsHandlingFlags::REMOTE_ALL
     $load_autoconnect = true
+    $receive_items_outside_map = false
 #--------------------------------------------------------------------------
 # * Progressive Methods
 #  This hash contains calls you want to make for progressive items.
@@ -366,11 +371,14 @@
 #--------------------------------------------------------------------------
     
     def restart_archipelago
+        
+        $ap_tags = []
+        $ap_tags.append("RingLink") if $ringlink_enabled
 
         $archipelago = Archipelago::Client.new
         $archipelago.connect_info["game"] = $archipelago_gamename
         $archipelago.connect_info["items_handling"] = $archipelago_items_handling
-        $archipelago.connect_info["tags"] = ["RingLink"] if $ringlink_enabled
+        $archipelago.connect_info["tags"] = $ap_tags
     #----------------------------------------------------------------------
     # * On Connected: Begin ItemHandling thread
     #----------------------------------------------------------------------
@@ -379,14 +387,28 @@
         $archipelago.add_listener("Connected") do |msg|
             Thread.new do
                 loop do
-                    item = unhandled_items.pop(true) rescue nil
-                    if item
-                        eval_target = $expanded_receiveditem_methods.fetch(item, "puts \"[Archipelago_RGSS3] No defined method for ReceivedItem ID #{item}!\"")
-                        eval(eval_target)
+                    if $receive_items_outside_map
+                        item = unhandled_items.pop(true) rescue nil
+                        if item
+                            eval_target = $expanded_receiveditem_methods.fetch(item, "puts \"[Archipelago_RGSS3] No defined method for ReceivedItem ID #{item}!\"")
+                            eval(eval_target)
+                            sleep 0.1
+                        else
+                            sleep 0.1
                     else
-                        sleep 0.1
-                    end
+                        # This ensures that items are not received until the game is in a valid scene
+                        if SceneManager.scene_is?(Scene_Map)
+                            item = unhandled_items.pop(true) rescue nil
+                            if item
+                                eval_target = $expanded_receiveditem_methods.fetch(item, "puts \"[Archipelago_RGSS3] No defined method for ReceivedItem ID #{item}!\"")
+                                eval(eval_target)
+                                sleep 0.1
+                            else
+                                sleep 0.1
+                        else
+                            sleep 0.5
                     break if $archipelago.client_connect_status == Archipelago::ConnectStatus::DISCONNECTED
+                    end
                 end
             end
         end

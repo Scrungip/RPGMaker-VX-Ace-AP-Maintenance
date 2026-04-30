@@ -1,3 +1,14 @@
+# Maintenance Fork for RPGMaker VX Ace AP
+ This fork has a few quality of life changes for usage with current AP versions as well as fixing a couple standing issues with the existing implementation.
+ 1. The script now has an option that can limit item receiving to the standard map scene, which can help with issues that may stem from things happening during battle or other scenes.
+ 2. The Datapackage Cache system has been rewired a bit to support game titles that contain symbols not supported in file/folder names.
+ 3. I've included Hime's Common Event Queue script, as it fixes some issues with Common Events that become very apparent when using them as AP Items. By default, reserving common events is a bit of a wild west and won't neccessarily do them in order, and if the same event is called multiple times it will only run once. This script puts it in a proper queue and runs everything as it's queued. Very handy.
+ 
+ This is the version of the script I use for my personal projects, and I haven't had issues with it.
+ Do let me know (either on here or through Discord) if you notice any issues.
+
+Anyway, here's the original README:
+
 # RPGMaker VX Ace AP
  Scripts that allow RPGMaker VX Ace, using mkxp-z, to connect to the Archipelago Multiworld Randomizer
 		
