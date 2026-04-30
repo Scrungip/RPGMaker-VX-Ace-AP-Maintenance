@@ -325,11 +325,16 @@
         port = text_input("Port:")
         name = text_input("Seat name:")
         password = text_input("Password (can be blank):")
+        ringlink = text_input("Enable RingLink? (type \"true\" or \"false\"):")
 
         $archipelago.connect_info["hostname"] = hostname.empty? ? "archipelago.gg" : hostname
         $archipelago.connect_info["port"] = port.to_i
         $archipelago.connect_info["name"] = name
         $archipelago.connect_info["password"] = password unless password.empty?
+        if ringlink = "true"
+            $ringlink_enabled = true
+        else
+            $ringlink_enabled = false
     end
 #--------------------------------------------------------------------------
 # * Create a new TextInput Scene
@@ -483,6 +488,8 @@
             contents[:AP_connect_info] = $archipelago.connect_info if $load_autoconnect
             contents[:AP_receiveditems_index] = $receiveditems_index
             contents[:AP_progressive_counts] = $progressive_counts
+            contents[:AP_ringlink_enabled] = $ringlink_enabled
+            contents[:AP_ringlink_conversion_rate] = $ringlink_conversion_rate
             contents
         end
 
@@ -501,6 +508,8 @@
             $archipelago.connect_info = contents[:AP_connect_info] if $load_autoconnect
             $receiveditems_index = contents[:AP_receiveditems_index]
             $progressive_counts = contents[:AP_progressive_counts]
+            $ringlink_enabled = contents[:AP_ringlink_enabled]
+            $ringlink_conversion_rate = contents[:AP_ringlink_conversion_rate]
         end
 
         def self.load_game(index)
