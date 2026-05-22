@@ -149,6 +149,12 @@
 #  together. Enable it by setting the value to true. You can change the
 #  conversion rate to any int/float.
 #    * DEFAULT: ringlink_enabled = false, ringlink_conversion_rate = 1
+#
+#  You'll want to give the player the option of turning RingLink on
+#  before they connect to the multiworld. This can be done within an
+#  event with a script call.
+#  Example:
+#  $ringlink_enabled = true
 #--------------------------------------------------------------------------
     ringlink_enabled = false
     $ringlink_conversion_rate = 1
@@ -325,17 +331,11 @@
         port = text_input("Port:")
         name = text_input("Seat name:")
         password = text_input("Password (can be blank):")
-        ringlink = text_input("Enable RingLink? (type \"true\" or \"false\"):")
 
         $archipelago.connect_info["hostname"] = hostname.empty? ? "archipelago.gg" : hostname
         $archipelago.connect_info["port"] = port.to_i
         $archipelago.connect_info["name"] = name
         $archipelago.connect_info["password"] = password unless password.empty?
-        if ringlink == "true"
-            $ringlink_enabled = true
-        else
-            $ringlink_enabled = false
-        end
     end
 #--------------------------------------------------------------------------
 # * Create a new TextInput Scene
@@ -540,21 +540,21 @@
 # * RingLink: Setup RingLink by adding new methods
 #--------------------------------------------------------------------------
 
-    if $ringlink_enabled
-        $ringlink_uuid = rand(0..1000000)
-        module RingLink_Methods
-            def gain_gold(amount)
-                ringlink_packet = [{cmd: "Bounce", tags: ["RingLink"], data: {time: Time.now.to_i, source: $ringlink_uuid, amount: amount * $ringlink_conversion_rate}}].to_json
+    $ringlink_uuid = rand(0..1000000)
+    module RingLink_Methods
+        def gain_gold(amount)
+            ringlink_packet = [{cmd: "Bounce", tags: ["RingLink"], data: {time: Time.now.to_i, source: $ringlink_uuid, amount: amount * $ringlink_conversion_rate}}].to_json
+            if $ringlink_enabled
                 $archipelago.client_socket.send(ringlink_packet)
-                super(amount)
             end
-
-            def gain_gold_ringlink(amount)
-                @gold = [[@gold + amount, 0].max, max_gold].min
-            end
+            super(amount)
         end
 
-        Game_Party.prepend(RingLink_Methods)
+        def gain_gold_ringlink(amount)
+            @gold = [[@gold + amount, 0].max, max_gold].min
+        end
     end
+
+    Game_Party.prepend(RingLink_Methods)
 
 
